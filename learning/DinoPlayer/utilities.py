@@ -10,8 +10,6 @@ import cv2  # opencv
 import numpy as np
 
 
-
-
 def save_obj(obj, name):
     with open('objects/' + name + '.pkl', 'wb') as f:  # dump files into objects folder
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)

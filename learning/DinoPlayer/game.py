@@ -11,14 +11,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 from utilities import show_img, grab_screen
 
-# 游戏的路径
-game_url = "chrome://dino"
-chrome_driver_path = r"./chromedriver"
-# 加快 DOM 解析的过程
-init_script = "document.getElementsByClassName('runner-canvas')[0].id = 'runner-canvas'"
-# 获取图片的脚本
-getbase64Script = "canvasRunner = document.getElementById('runner-canvas'); \
-return canvasRunner.toDataURL().substring(22)"
+
 # 路径变量
 loss_file_path = "./objects/loss_df.csv"
 actions_file_path = "./objects/actions_df.csv"
@@ -37,14 +30,21 @@ class Game:
     """
     游戏类，Python 和 浏览器的交互接口
     """
-    def __init__(self,custom_config=True):
+    def __init__(self, game_url="chrome://dino",
+                 chrome_driver="./chromedriver",
+                 init_script="document.getElementsByClassName('runner-canvas')[0].id = 'runner-canvas'"):
+        """
+        构造函数
+        :param game_url: Dino 的 URL
+        :param chrome_driver: chrome driver 驱动程序
+        """
         chrome_options = Options()
         chrome_options.add_argument("disable-infobars")
         chrome_options.add_argument("--mute-audio")
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-extensions')
         chrome_options.add_argument('--disable-dev-shm-usage')
-        self._driver = webdriver.Chrome(executable_path = chrome_driver_path, chrome_options=chrome_options)
+        self._driver = webdriver.Chrome(executable_path=chrome_driver, chrome_options=chrome_options)
         self._driver.set_window_position(x=-10, y=0)
         self._driver.get(game_url)
         self._driver.execute_script("Runner.config.ACCELERATION=0")
@@ -142,18 +142,31 @@ class GameState:
         self._display = show_img() #display the processed image on screen using openCV, implemented using python coroutine
         self._display.__next__() # initiliaze the display coroutine
 
-    def get_state(self,actions):
+    def get_state(self, actions):
         actions_df.loc[len(actions_df)] = actions[1] # storing actions in a dataframe
         score = self._game.get_score()
         reward = 0.1
         is_over = False #game over
         if actions[1] == 1:
             self._agent.jump()
-        image = grab_screen(self._game._driver, getbase64Script)
-        self._display.send(image) #display the image on screen
+        image = grab_screen(self._game._driver, getbase64Script="canvasRunner = document.getElementById('runner-canvas');return canvasRunner.toDataURL().substring(22)")
+        self._display.send(image)  # display the image on screen
         if self._agent.is_crashed():
             scores_df.loc[len(loss_df)] = score # log the score when game is over
             self._game.restart()
             reward = -1
             is_over = True
         return image, reward, is_over #return the Experience tuple
+
+def testOutput():
+    """
+    用于测试，显示 Dino 能否在图片中正常显示
+    :return:
+    """
+    game = Game()
+    dino = DinoAgent(game)
+    game_state = GameState(dino, game)
+    # State
+
+if __name__ == "__main__":
+    testOutput()
