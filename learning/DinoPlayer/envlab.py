@@ -17,7 +17,6 @@ class EnvLab(object):
         self.env = game_state
         self.agent = dino
         self.game = game
-        self.action = None
         self.num_actions = 2
 
     def NumActions(self):
@@ -44,3 +43,5 @@ class EnvLab(object):
                             getbase64Script="canvasRunner = document.getElementById('runner-canvas');return canvasRunner.toDataURL().substring(22)")
         return image
 
+    def Restart(self):
+        self.game.restart()

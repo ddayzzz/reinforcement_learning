@@ -35,7 +35,7 @@ learning_rate = 0.00025
 # 设备
 device = "/gpu:0"
 # local AC 的数量
-num_workers = 8
+num_workers = 1
 # 限制最优函数的估计公式中 k 的范围。
 t_max = 30
 frame_repeat = 10  # 4
@@ -257,7 +257,7 @@ class Worker(object):
         self.name = "worker_" + str(number)
         self.number = number
         self.model_name = model_name
-        self.env = EnvLab(chrome_driver, False)  # 子 AC 不显示图像
+        self.env = EnvLab(chrome_driver, True)  # 子 AC 不显示图像
         # Create the local copy of the network and the tensorflow op to copy global paramters to local network
         self.local_ac = ACNet(num_actions, self.name, trainer)
         # 从全局 AC 网络中获取数据
@@ -338,10 +338,12 @@ class Worker(object):
             episode_buffer = []
             episode_reward = 0
             # 重新设置环境
-            self.env.Reset()
+            # self.env.Reset()
             self.local_ac.ResetLstm()
             # 获取初始的 state 的图像
-            s = GrayToToHWD(self.env.GetGameImage())
+            image, _, _ = self.env.Act(1)  # 开始的初始动作
+            s = GrayToToHWD(image)
+            backed = s.copy()
             while (self.env.IsRunning()):
                 # Take an action using probabilities from policy network output.
                 a, v = self.local_ac.GetAction(sess, s)
@@ -350,7 +352,7 @@ class Worker(object):
                 if (not finished):
                     s1 = image
                 else:
-                    s1 = None
+                    s1 = backed
 
                 episode_buffer.append([s, a, r, v])
 
@@ -441,12 +443,6 @@ class Agent(object):
 
 
 def Test(agent):
-    if (test_write_video):
-        size = (out_size_width, out_size_height)
-        fps = out_fps
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')  # cv2.cv.CV_FOURCC(*'XVID')
-        out_video = cv2.VideoWriter(path_work_dir + "test.avi", fourcc, fps, size)
-
     reward_total = 0
     num_episodes = 30
 
@@ -459,10 +455,8 @@ def Test(agent):
             print("Total reward: {}".format(reward_total))
             reward_total = 0
             num_episodes -= 1
-
-        # 显示对象的窗口
-        if not env.IsRunning():
-            break
+            env.Restart()
+        #
 
 
 if __name__ == '__main__':
