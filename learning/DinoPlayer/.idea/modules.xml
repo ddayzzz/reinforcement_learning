@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/DQNDinoPlayer.iml" filepath="$PROJECT_DIR$/.idea/DQNDinoPlayer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/DinoPlayer.iml" filepath="$PROJECT_DIR$/.idea/DinoPlayer.iml" />
     </modules>
   </component>
 </project>

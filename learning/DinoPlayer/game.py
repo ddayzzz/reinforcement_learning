@@ -41,9 +41,6 @@ class Game:
         chrome_options = Options()
         chrome_options.add_argument("disable-infobars")
         chrome_options.add_argument("--mute-audio")
-        chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--disable-extensions')
-        chrome_options.add_argument('--disable-dev-shm-usage')
         self._driver = webdriver.Chrome(executable_path=chrome_driver, chrome_options=chrome_options)
         self._driver.set_window_position(x=-10, y=0)
         self._driver.get(game_url)
@@ -114,13 +111,14 @@ class DinoAgent:
     """
     强化学习的 Agent
     """
-    def __init__(self, game):
+    def __init__(self, game, start_immediately=True):
         """
         构造 Agent
         :param game: 利用 game 进行各种动作，最终反应到与 浏览器的接口上
         """
         self._game = game
-        self.jump()  # 首先起跳启动游戏
+        if start_immediately:
+            self.jump()  # 首先起跳启动游戏
 
     def is_running(self):
         return self._game.get_playing()
@@ -136,11 +134,13 @@ class DinoAgent:
 
 
 class GameState:
-    def __init__(self,agent,game):
+    def __init__(self, agent, game, show=False, ):
         self._agent = agent
         self._game = game
-        self._display = show_img() #display the processed image on screen using openCV, implemented using python coroutine
-        self._display.__next__() # initiliaze the display coroutine
+        self.show = show
+        if show:
+            self._display = show_img()  # display the processed image on screen using openCV, implemented using python coroutine
+            self._display.__next__()  # initiliaze the display coroutine
 
     def get_state(self, actions):
         actions_df.loc[len(actions_df)] = actions[1] # storing actions in a dataframe
@@ -150,7 +150,8 @@ class GameState:
         if actions[1] == 1:
             self._agent.jump()
         image = grab_screen(self._game._driver, getbase64Script="canvasRunner = document.getElementById('runner-canvas');return canvasRunner.toDataURL().substring(22)")
-        self._display.send(image)  # display the image on screen
+        if self.show:
+            self._display.send(image)  # display the image on screen
         if self._agent.is_crashed():
             scores_df.loc[len(loss_df)] = score # log the score when game is over
             self._game.restart()
@@ -163,10 +164,11 @@ def testOutput():
     用于测试，显示 Dino 能否在图片中正常显示
     :return:
     """
-    game = Game()
+    game = Game(chrome_driver=r"C:\Windows\chromedriver.exe")
     dino = DinoAgent(game)
     game_state = GameState(dino, game)
-    # State
+    # 显示游戏的界面
+    input()
 
 if __name__ == "__main__":
     testOutput()

@@ -229,14 +229,14 @@ def trainNetwork(model, game_state, observe=False):
 
 #main function
 def playGame(observe=False):
-    game = Game()
+    game = Game(chrome_driver=r"C:\Windows\chromedriver.exe")
     dino = DinoAgent(game)
-    game_state = GameState(dino,game)
+    game_state = GameState(dino,game, show=True)
     model = buildmodel()
     try:
         trainNetwork(model,game_state,observe=observe)
     except StopIteration:
         game.end()
 
-
-playGame(observe=True)  # observe 表示是否载入已经训练好的模型
+# init_cache()
+playGame(observe=False)  # observe 表示是否载入已经训练好的模型

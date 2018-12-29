@@ -28,6 +28,7 @@ def grab_screen(_driver, getbase64Script):
 
 
 def process_img(image):
+    # 转换为 TF 的格式
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # RGB to Grey Scale
     image = image[:300, :500]  # Crop Region of Interest(ROI)
     image = cv2.resize(image, (80, 80))
