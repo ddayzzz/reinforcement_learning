@@ -12,19 +12,6 @@ from selenium.webdriver.common.keys import Keys
 from utilities import show_img, grab_screen
 
 
-# 路径变量
-loss_file_path = "./objects/loss_df.csv"
-actions_file_path = "./objects/actions_df.csv"
-q_value_file_path = "./objects/q_values.csv"
-scores_file_path = "./objects/scores_df.csv"
-# 保存游戏的状态信息的文件
-#Intialize log structures from file if exists else create new
-loss_df = pd.read_csv(loss_file_path) if os.path.isfile(loss_file_path) else pd.DataFrame(columns =['loss'])
-scores_df = pd.read_csv(scores_file_path) if os.path.isfile(loss_file_path) else pd.DataFrame(columns = ['scores'])
-actions_df = pd.read_csv(actions_file_path) if os.path.isfile(actions_file_path) else pd.DataFrame(columns = ['actions'])
-q_values_df =pd.read_csv(actions_file_path) if os.path.isfile(q_value_file_path) else pd.DataFrame(columns = ['qvalues'])
-
-
 class Game:
 
     """
