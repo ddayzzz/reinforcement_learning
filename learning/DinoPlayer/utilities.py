@@ -34,7 +34,8 @@ def process_img(image):
     image = cv2.resize(image, (80, 80))
     return image
 
-def show_img(graphs = False):
+
+def show_img(graphs=False):
     """
     Show images in new window
     """
