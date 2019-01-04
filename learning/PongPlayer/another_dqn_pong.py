@@ -32,7 +32,7 @@ INITIAL_EPSILON = 0.1 # starting value of epsilon
 EPSILON_DECAY_RATE = 0.25
 EPSILON_DECAY_PER_EPISODE = 2
 REPLAY_MEMORY = 50000 # number of previous transitions to remember
-BATCH = 16 # size of minibatch
+BATCH = 64 # size of minibatch
 FRAME_PER_ACTION = 1
 LEARNING_RATE = 1e-4
 img_rows , img_cols = 80, 80
@@ -147,7 +147,7 @@ def trainNetwork(model, game_state, render=False, trainMode=True):
                 action_t = minibatch[i][1]  # This is action index
                 reward_t = minibatch[i][2]  # reward at state_t due to action_t
                 state_t1 = minibatch[i][3]  # next state
-                terminal = minibatch[i][4]  # wheather the agent died or survided due the action
+                terminal_ = minibatch[i][4]  # wheather the agent died or survided due the action
 
                 inputs[i:i + 1] = state_t
 
@@ -164,6 +164,7 @@ def trainNetwork(model, game_state, render=False, trainMode=True):
             new_x = process_img(new_x)
             s_t = np.stack((new_x, new_x, new_x, new_x), axis=2)  # stack 4 images to create placeholder input
             s_t = s_t.reshape(1, s_t.shape[0], s_t.shape[1], s_t.shape[2])
+            model.save_weights('pong_model_checkpoint_dqn.h5', overwrite=True)
         # print('fps: {0}'.format(1 / (time.time() - last_time)))  # helpful for measuring frame rate
         # last_time = time.time()
         #
