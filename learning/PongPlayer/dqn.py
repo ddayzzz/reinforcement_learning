@@ -22,23 +22,22 @@ class DQN(object):
                  num_actions,
                  init_learning_rate):
         model = Sequential()
-        model.add(Conv2D(32, (8, 8), padding='same', strides=(4, 4), input_shape=(img_width, img_height, num_history)))  # 80*80*4
-        model.add(MaxPooling2D(pool_size=(2, 2)))
+        model.add(
+            Conv2D(32, (8, 8), padding='same', strides=(4, 4),
+                   input_shape=(img_width, img_height, num_history)))  # 80*80*4
         model.add(Activation('relu'))
         model.add(Conv2D(64, (4, 4), strides=(2, 2), padding='same'))
-        model.add(MaxPooling2D(pool_size=(2, 2)))
         model.add(Activation('relu'))
         model.add(Conv2D(64, (3, 3), strides=(1, 1), padding='same'))
-        model.add(MaxPooling2D(pool_size=(2, 2)))
         model.add(Activation('relu'))
         model.add(Flatten())
         model.add(Dense(512))
         model.add(Activation('relu'))
-        model.add(Dense(num_actions))
-        # 定义学习率
-        adam = Adam(lr=init_learning_rate)
-        model.compile(loss='mse', optimizer=adam)
+        model.add(Dense(num_actions, activation='softmax'))
+        opt = Adam(lr=init_learning_rate)
+        model.compile(loss='categorical_crossentropy', optimizer=opt)
         self.model = model
+
 
 
 #game parameters
@@ -49,12 +48,14 @@ EXPLORE = 100000  # frames over which to anneal epsilon
 FINAL_EPSILON = 0.0001 # final value of epsilon
 INITIAL_EPSILON = 0.1 # starting value of epsilon
 REPLAY_MEMORY = 50000 # number of previous transitions to remember
-BATCH = 32 # size of minibatch
+BATCH = 16 # size of minibatch
 FRAME_PER_ACTION = 1
 LEARNING_RATE = 1e-4
 img_rows , img_cols = 80,80
 img_channels = 4 #We stack 4 frames
 SAVE_PER_EPISODE = 2
+UPDATE_NETWORK_PER_EPISODE = 1
+
 
 class DQNPlayer():
 
@@ -107,7 +108,7 @@ class DQNPlayer():
             s_t = s_t.reshape(1, s_t.shape[0], s_t.shape[1], s_t.shape[2])  # 1*20*40*4
             # 开始一局
             time_step = 0
-            loss = np.inf
+            loss = 0
             scores = 0
             while True:
                 # 选择并运行一个动作
@@ -125,30 +126,33 @@ class DQNPlayer():
                 # 存入buffer
                 replay_buffer.add(s_t, action, reward, s_t1, done)
                 # 是否更新网络
-                if time_step > OBSERVATION:
-                    # sample a minibatch to train on
-                    states, actions, rewards, next_states, dones = replay_buffer.sample(BATCH)
-                    inputs = np.zeros((BATCH, s_t.shape[1], s_t.shape[2], s_t.shape[3]))  # 32, 20, 40, 4
-                    targets = np.zeros((inputs.shape[0], self.env.num_actions))  # 32, 2
+                if done:
+                    episode += 1
+                    if episode % UPDATE_NETWORK_PER_EPISODE == 0:
+                        print('UPDATE')
+                        # sample a minibatch to train on
+                        states, actions, rewards, next_states, dones = replay_buffer.sample(BATCH)
+                        inputs = np.zeros((BATCH, s_t.shape[1], s_t.shape[2], s_t.shape[3]))  # 32, 20, 40, 4
+                        targets = np.zeros((inputs.shape[0], self.env.num_actions))  # 32, 2
 
-                    # Now we do the experience replay
-                    for i in range(0, BATCH):
-                        state_t = states[i]  # 4D stack of images
-                        action_t = actions[i]  # This is action index
-                        reward_t = rewards[i]  # reward at state_t due to action_t
-                        state_t1 = next_states[i]  # next state
-                        terminated = dones[i]  # wheather the agent died or survided due the action
+                        # Now we do the experience replay
+                        for i in range(0, BATCH):
+                            state_t = states[i]  # 4D stack of images
+                            action_t = actions[i]  # This is action index
+                            reward_t = rewards[i]  # reward at state_t due to action_t
+                            state_t1 = next_states[i]  # next state
+                            terminated = dones[i]  # wheather the agent died or survided due the action
 
-                        inputs[i:i + 1] = state_t
+                            inputs[i:i + 1] = state_t
 
-                        targets[i] = self.model.predict(state_t)  # predicted q values
-                        Q_sa = self.model.predict(state_t1)  # predict q values for next step
+                            targets[i] = self.model.predict(state_t)  # predicted q values
+                            Q_sa = self.model.predict(state_t1)  # predict q values for next step
 
-                        if terminated:
-                            targets[i, action_t] = reward_t  # if terminated, only equals reward
-                        else:
-                            targets[i, action_t] = reward_t + GAMMA * np.max(Q_sa)
-                    loss += self.model.train_on_batch(inputs, targets)
+                            if terminated:
+                                targets[i, action_t] = reward_t  # if terminated, only equals reward
+                            else:
+                                targets[i, action_t] = reward_t + GAMMA * np.max(Q_sa)
+                        loss += self.model.train_on_batch(inputs, targets)
                 time_step += 1
                 # 画图
                 if render_observation:
@@ -156,11 +160,14 @@ class DQNPlayer():
                 # 是否退出
                 if done:
                     # 打印相关的信息
-                    print('Episode:{episode}, Scores:{score}, Loss: {loss}'.format(loss=loss, episode=episode, score=scores))
-                    episode += 1
+                    print(
+                        'Episode:{episode}, Scores:{score}, Epsilon:{epsilon}, Loss: {loss}'.format(epsilon=self.epsilon,
+                                                                                                  loss=loss,
+                                                                                                  episode=episode,
+                                                                                                  score=scores))
                     #
-                    if episode % SAVE_PER_EPISODE:
-                        self.model.save_weights('pong_dqn.json', overwrite=True)
+                    if episode % SAVE_PER_EPISODE == 0:
+                        self.model.save_weights('pong_dqn.h5', overwrite=True)
                     break
                 else:
                     s_t = s_t1
