@@ -4,12 +4,13 @@
 """
 
 # 基本库的导入
-import pandas as pd
-import os
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 from utilities import show_img, grab_screen
+import os
+import threading
 
 
 class Game:
@@ -19,12 +20,20 @@ class Game:
     """
     def __init__(self, game_url="chrome://dino",
                  chrome_driver="./chromedriver",
-                 init_script="document.getElementsByClassName('runner-canvas')[0].id = 'runner-canvas'"):
+                 init_script="document.getElementsByClassName('runner-canvas')[0].id = 'runner-canvas'",
+                 virtual_display=True):
         """
         构造函数
         :param game_url: Dino 的 URL
         :param chrome_driver: chrome driver 驱动程序
         """
+        if not virtual_display:
+            if os.name == 'nt':
+                raise ValueError("Pyvirtualdisplay is not available in Windows")
+            else:
+                from pyvirtualdisplay import Display
+                self._display = Display(visible=1)
+                self._display.start()
         chrome_options = Options()
         chrome_options.add_argument("disable-infobars")
         chrome_options.add_argument("--mute-audio")
@@ -85,12 +94,22 @@ class Game:
         """
         return self._driver.execute_script("return Runner.instance_.play()")
 
+    def stop(self):
+        """
+        暂停游戏
+        :return:
+        """
+        return self._driver.execute_script("return Runner.instance_.stop()")
+
     def end(self):
         """
         结束一局游戏
         :return:
         """
         self._driver.close()
+        # close virtual display
+        if getattr(self, '_display'):
+            self._display.stop()
 
 
 class DinoAgent:
@@ -121,7 +140,8 @@ class DinoAgent:
 
 
 class GameState:
-    def __init__(self, agent, game, show=False, ):
+
+    def __init__(self, agent, game, show=False):
         self._agent = agent
         self._game = game
         self.show = show
@@ -129,32 +149,36 @@ class GameState:
             self._display = show_img()  # display the processed image on screen using openCV, implemented using python coroutine
             self._display.__next__()  # initiliaze the display coroutine
 
-    def get_state(self, actions):
-        actions_df.loc[len(actions_df)] = actions[1] # storing actions in a dataframe
-        score = self._game.get_score()
-        reward = 0.1
-        is_over = False #game over
-        if actions[1] == 1:
-            self._agent.jump()
-        image = grab_screen(self._game._driver, getbase64Script="canvasRunner = document.getElementById('runner-canvas');return canvasRunner.toDataURL().substring(22)")
+    def observe(self):
+        image = grab_screen(self._game._driver,
+                            getbase64Script="canvasRunner = document.getElementById('runner-canvas');return canvasRunner.toDataURL().substring(22)")
         if self.show:
             self._display.send(image)  # display the image on screen
-        if self._agent.is_crashed():
-            scores_df.loc[len(loss_df)] = score # log the score when game is over
-            self._game.restart()
-            reward = -1
-            is_over = True
-        return image, reward, is_over #return the Experience tuple
+        return image
+
+
+def _start_a_game(game_state, game):
+
+    def run():
+        while True:
+            if game.get_crashed():
+                game.restart()
+            game_state.observe()
+    t = threading.Thread(target=run)
+    t.start()
+
 
 def testOutput():
     """
     用于测试，显示 Dino 能否在图片中正常显示
     :return:
     """
-    game = Game(chrome_driver=r"C:\Windows\chromedriver.exe")
-    dino = DinoAgent(game)
-    game_state = GameState(dino, game)
-    # 显示游戏的界面
+    # Dino 1
+    game1 = Game(chrome_driver=r"/bin/chromedriver", virtual_display=True)
+    dino1 = DinoAgent(game1)
+    game_state1 = GameState(dino1, game1, show=True)
+    _start_a_game(game_state1, game1)
+    # _start_a_game(game_state2)
     input()
 
 if __name__ == "__main__":

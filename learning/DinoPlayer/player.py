@@ -184,7 +184,6 @@ def trainNetwork(model, game_state, observe=False):
 
                 targets[i] = model.predict(state_t)  # predicted q values
                 Q_sa = model.predict(state_t1)  # predict q values for next step
-
                 if terminal:
                     targets[i, action_t] = reward_t  # if terminated, only equals reward
                 else:

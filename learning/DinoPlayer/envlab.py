@@ -3,45 +3,44 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import cv2
 from game import Game, GameState, DinoAgent
 from utilities import grab_screen
 
 
-class EnvLab(object):
-    def __init__(self, chrome_driver, show_image=False):
-        game = Game(chrome_driver=chrome_driver)
-        dino = DinoAgent(game, start_immediately=True)
-        game_state = GameState(dino, game, show=show_image)
+class DinoEnv(object):
+
+    def __init__(self, game, game_agent, game_state):
         # 初始化
-        self.env = game_state
-        self.agent = dino
         self.game = game
-        self.num_actions = 2
+        self.state = game_state
+        self.agent = game_agent
+        self.actions = ['nothing', 'up']
+        self.num_actions = 2  # 能够采取的行动的数量
+        self.num_features = 5  # 不知道是什么意思
+        self.score = 0
 
-    def NumActions(self):
-        return 2  # 2 个动作。0 保持 1 跳起
-
-    def Reset(self):
+    def reset(self):
+        """
+        重新开始一局游戏清空所有的统计信息
+        :return:
+        """
+        self.score = 0
+        self.game.stop()
         self.game.restart()
 
-    def Act(self, action):
+    def step(self, action):
         """
-        执行相关的动作
-        :param action: 行为的编号 {0, 1}
-        :return: 这一帧执行一个动作的返回的图像(RGB)，回报，是否有结束的信息
+        采取一次行动
+        :param action: 行动的编号 [0,num_actions)
+        :return: state(这一帧的灰度图像), reward, done
         """
-        action_one_hot = np.zeros([self.num_actions])
-        action_one_hot[action] = 1
-        return self.env.get_state(action_one_hot)
-
-    def IsRunning(self):
-        return self.agent.is_running()
-
-    def GetGameImage(self):
-        image = grab_screen(self.game._driver,
-                            getbase64Script="canvasRunner = document.getElementById('runner-canvas');return canvasRunner.toDataURL().substring(22)")
-        return image
-
-    def Restart(self):
-        self.game.restart()
+        score = self.game.get_score()
+        reward = 0.1
+        is_over = False  # game over
+        if action == 1:
+            self.agent.jump()
+        image = self.agent.observe()
+        if self.agent.is_crashed():
+            reward = -1.0
+            is_over = True
+        return image, reward, is_over  # return the Experience tuple
