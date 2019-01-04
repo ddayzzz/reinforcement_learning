@@ -1,4 +1,6 @@
 # Chrome Dino player based on Q-learning
+## Notice
+**This project is beyound our capacity, so we give up further development for our team's end-term assignment. Unfortunately, we have not yet restore the structure of the codes.**
 ## Features
 - Dino has running for over 10 hours
 ![](docs/scores_on_10_hours.jpg)

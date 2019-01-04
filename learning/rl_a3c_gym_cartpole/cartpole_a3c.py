@@ -16,6 +16,7 @@ import threading
 import multiprocessing
 import numpy as np
 import tensorflow as tf
+from gym.wrappers import Monitor
 
 from worker import Worker
 from ac_network import AC_Network
@@ -76,7 +77,7 @@ def main(_):
 
         # Gym monitor
         if not TEST_MODEL:
-            from gym.wrappers import Monitor
+
 
             env = workers[0].get_env()
             env = Monitor(env, directory=MONITOR_DIR,video_callable=False, force=True)
@@ -92,7 +93,7 @@ def main(_):
 
         if TEST_MODEL:
             env = workers[0].get_env()
-            env.monitor.start(MONITOR_DIR, force=True)
+            env = Monitor(env, directory=MONITOR_DIR, force=True)
             workers[0].work(GAMMA, sess, coord, saver)
         else:
             # This is where the asynchronous magic happens.
