@@ -1,6 +1,6 @@
 # 定义 pong 的环境
 import gym
-import cv2
+import numpy as np
 
 
 class PongEnv():
@@ -14,13 +14,14 @@ class PongEnv():
         #
         self.num_actions = self._env.action_space.n
 
-    def process_img(self, I):
-        # 截取指定的区域
+    @staticmethod
+    def process_img(I):
         I = I[35:195]
-        # 转换成灰度图
-        I = cv2.cvtColor(I, cv2.COLOR_RGB2GRAY)
-        I = cv2.resize(I, (self.crop_image_width, self.crop_image_height))
-        return I
+        I = I[::2, ::2, 0]
+        I[I == 144] = 0
+        I[I == 109] = 0
+        I[I != 0] = 1
+        return I.astype(np.float).ravel()
 
     def reset(self):
         """

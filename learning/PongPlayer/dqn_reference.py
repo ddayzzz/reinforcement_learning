@@ -10,13 +10,36 @@ from keras.layers import Input, Dense, Reshape
 from keras.optimizers import Adam, RMSprop
 from keras.layers.core import Flatten
 from keras.layers.convolutional import Convolution2D
+from ftplib import FTP
+import os
+import json
+
+
+def ftp_up(filenames, server, username, passwd, port=21):
+    ftp=FTP()
+    ftp.set_pasv(False)
+    ftp.set_debuglevel(2)#打开调试级别2，显示详细信息;0为关闭调试信息
+    ftp.connect(server, port=port)#连接
+    ftp.login(user=username, passwd=passwd)#登录，如果匿名登录则用空串代替即可
+    ftp.cwd('/saved_models')
+    ftp.set_debuglevel(0)
+    #print ftp.getwelcome()#显示ftp服务器欢迎信息
+    #ftp.cwd('xxx/xxx/') #选择操作目录
+    bufsize = 1024#设置缓冲块大小
+    for filename in filenames:
+        with open(filename, 'rb') as fp:
+            ftp.storbinary('STOR %s' % os.path.basename(filename), fp, bufsize)  # 上传文件
+            print("Success upload file '%s'" % filename)
+    ftp.quit()
+
+
 
 # Script Parameters
 input_dim = 80 * 80
 gamma = 0.99
 update_frequency = 1
 learning_rate = 0.001
-resume = False
+resume = True
 render = True
 
 # Initialize
@@ -31,6 +54,9 @@ reward_sum = 0
 episode_number = 0
 train_X = []
 train_y = []
+PUSH_PER_EPISODE = 100000
+rewards_info = []
+# push model to ftp
 
 
 def pong_preprocess_screen(I):
@@ -120,21 +146,29 @@ while True:
             # y_train[y_train<0] = 0
             # y_train[y_train>1] = 1
             # y_train = y_train / np.sum(np.abs(y_train), axis=1, keepdims=True)
-            print('Training Snapshot:')
-            print(y_train)
+            # print('Training Snapshot:')
+            # print(y_train)
             model.train_on_batch(np.squeeze(np.vstack(train_X)), y_train)
             # Clear the batch
             train_X = []
             train_y = []
             probs = []
             # Save a checkpoint of the model
-            os.remove('pong_model_checkpoint.h5') if os.path.exists('pong_model_checkpoint.h5') else None
-            model.save_weights('pong_model_checkpoint.h5')
+            model.save_weights('pong_model_checkpoint.h5', overwrite=True)
+            # IF
+            rewards_info.append((episode_number, reward_sum, running_reward))
+            if episode_number % PUSH_PER_EPISODE == 0:
+                # reward_info
+                with open('rewards.json', 'w') as fp:
+                    json.dump(rewards_info, fp)
+                # ftp_up(filenames=['pong_model_checkpoint.h5', 'rewards.json'], server='120.79.12.164', username='ftpuser', passwd='ws19971222')
         # Reset the current environment nad print the current results
         running_reward = reward_sum if running_reward is None else running_reward * 0.99 + reward_sum * 0.01
-        print('Environment reset imminent. Total Episode Reward: %f. Running Mean: %f' % (reward_sum, running_reward))
+        print('Episode: %d. Total Episode Reward: %f. Running Mean: %f' % (episode_number, reward_sum, running_reward))
+
+
         reward_sum = 0
         observation = env.reset()
         prev_x = None
-    if reward != 0:
-        print('Episode %d Result: ' % episode_number + ('Defeat!' if reward == -1 else 'VICTORY!'))
+    # if reward != 0:
+    #     print('Episode %d Result: ' % episode_number + ('Defeat!' if reward == -1 else 'VICTORY!'))
