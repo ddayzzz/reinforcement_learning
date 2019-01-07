@@ -4,40 +4,55 @@ import tensorflow as tf
 import numpy as np
 
 
-# Actor-Critic Network Base Class
-# (Policy network and Value network)
 class GameACNetwork(object):
+
     def __init__(self,
                  action_size,
                  thread_index,  # -1 for global
                  device="/cpu:0"):
+        """
+        基本 AC 网络定义，定义了:
+        1. Actor: states -> actions
+        2. Actor-target: states -> actions
+        3. Critic: states, actions -> values
+        4. Critic-target: states, actions -> values
+        :param action_size: 状态空间的大小
+        :param thread_index: 线程编号，主要区别不同的 local 和 global AC 网络
+        :param device: 会话运行的设备
+        """
         self._action_size = action_size
         self._thread_index = thread_index
         self._device = device
 
     def prepare_loss(self, entropy_beta):
+        """
+        定义损失函数
+        :param entropy_beta:
+        :return:
+        """
         with tf.device(self._device):
-            # taken action (input for policy)
+            # 输出的动作的各个概率
             self.a = tf.placeholder("float", [None, self._action_size])
 
             # temporary difference (R-V) (input for policy)
+            # 时间差分 （Reward-Value）， 作为策略 pi 的输入
             self.td = tf.placeholder("float", [None])
 
-            # avoid NaN with clipping when value in pi becomes zero
+            # 通过截取策略小于0的输出的值，避免 NaN
             log_pi = tf.log(tf.clip_by_value(self.pi, 1e-20, 1.0))
 
-            # policy entropy
+            # 论文第4页， 在策略添加 熵 可以避免过早收敛到局部最优的情况。 公式为 H(pi(s;theta))=log(pi(s;theta)) * pi(s;theta)
             entropy = -tf.reduce_sum(self.pi * log_pi, reduction_indices=1)
 
-            # policy loss (output)  (Adding minus, because the original paper's objective function is for gradient ascent, but we use gradient descent optimizer.)
-            policy_loss = - tf.reduce_sum(
-                tf.reduce_sum(tf.multiply(log_pi, self.a), reduction_indices=1) * self.td + entropy * entropy_beta)
+            # 策略的损失，论文使用梯度上升算法，需要取反
+            policy_loss = - tf.reduce_sum(tf.reduce_sum(tf.multiply(log_pi, self.a), reduction_indices=1) * self.td + entropy * entropy_beta)
 
-            # R (input for value)
+            # 用于累计
             self.r = tf.placeholder("float", [None])
 
             # value loss (output)
             # (Learning rate for Critic is half of Actor's, so multiply by 0.5)
+            # Critic
             value_loss = 0.5 * tf.nn.l2_loss(self.r - self.v)
 
             # gradienet of policy and value are summed up
@@ -220,8 +235,8 @@ class GameACLSTMNetwork(GameACNetwork):
             self.v = tf.reshape(v_, [-1])
 
             scope.reuse_variables()
-            self.W_lstm = tf.get_variable("basic_lstm_cell/weights")
-            self.b_lstm = tf.get_variable("basic_lstm_cell/biases")
+            self.W_lstm = tf.get_variable("basic_lstm_cell/kernel")
+            self.b_lstm = tf.get_variable("basic_lstm_cell/bias")
 
             self.reset_state()
 

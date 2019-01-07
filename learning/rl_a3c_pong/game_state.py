@@ -17,7 +17,7 @@ class GameState(object):
         # 是否显示游戏的图像
         self._display = display
         # 定义 Pong 游戏的映射，把6个动作映射为一个{2，3，4}的3个动作
-        # API 定义：Each action is repeatedly performed for a duration of kk frames, where kk is uniformly sampled from \{2, 3, 4\}{2,3,4}.
+        # API 定义：Each action is repeatedly performed for a duration of kk frames, where kk is uniformly sampled from {2,3,4}.
         self.real_actions_space = np.array([2, 3, 4])
         # 首先清空游戏的信息
         self.reset()
@@ -83,7 +83,7 @@ class GameState(object):
 
     def update(self):
         """
-        更新动作
+        更新状态
         :return:
         """
         self.s_t = self.s_t1
