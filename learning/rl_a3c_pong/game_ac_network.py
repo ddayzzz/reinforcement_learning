@@ -16,6 +16,7 @@ class GameACNetwork(object):
         2. Actor-target: states -> actions
         3. Critic: states, actions -> values
         4. Critic-target: states, actions -> values
+        LSTM 的作用主要在于实现和 DQN 中的 Experience Replay
         :param action_size: 状态空间的大小
         :param thread_index: 线程编号，主要区别不同的 local 和 global AC 网络
         :param device: 会话运行的设备
@@ -44,18 +45,17 @@ class GameACNetwork(object):
             # 论文第4页， 在策略添加 熵 可以避免过早收敛到局部最优的情况。 公式为 H(pi(s;theta))=log(pi(s;theta)) * pi(s;theta)
             entropy = -tf.reduce_sum(self.pi * log_pi, reduction_indices=1)
 
-            # 策略的损失，论文使用梯度上升算法，需要取反
+            # 策略的损失，论文使用梯度上升算法，需要取反.
+            # 计算的公式在论文第四页
             policy_loss = - tf.reduce_sum(tf.reduce_sum(tf.multiply(log_pi, self.a), reduction_indices=1) * self.td + entropy * entropy_beta)
 
-            # 用于累计
+            # 用于累计回报， 治理使用时间差分，即  R_t - V(s;theta_v)
             self.r = tf.placeholder("float", [None])
 
-            # value loss (output)
-            # (Learning rate for Critic is half of Actor's, so multiply by 0.5)
-            # Critic
+            # Critic 的学习率一般是 Actor 学习率的一半。 Value 的损失
             value_loss = 0.5 * tf.nn.l2_loss(self.r - self.v)
 
-            # gradienet of policy and value are summed up
+            # 将策略的损失和至函数的损失合并起来一起优化
             self.total_loss = policy_loss + value_loss
 
     def run_policy_and_value(self, sess, s_t):
@@ -71,6 +71,12 @@ class GameACNetwork(object):
         raise NotImplementedError()
 
     def sync_from(self, src_netowrk, name=None):
+        """
+        对于 AC 网络如果需要同步，则必须指定啦去参数的 AC 网络
+        :param src_netowrk: 来源的 AC 网络
+        :param name: 变量所在的作用域，防止本网络对自己赋值
+        :return: 返回赋值 tensorflow 操作对象
+        """
         src_vars = src_netowrk.get_vars()
         dst_vars = self.get_vars()
 
@@ -84,7 +90,7 @@ class GameACNetwork(object):
 
                 return tf.group(*sync_ops, name=name)
 
-    # weight initialization based on muupan's code
+    # 使用 ALE 游戏专用的构建神经网络的代码
     # https://github.com/muupan/async-rl/blob/master/a3c_ale.py
     def _fc_variable(self, weight_shape):
         input_channels = weight_shape[0]
@@ -110,87 +116,36 @@ class GameACNetwork(object):
         return tf.nn.conv2d(x, W, strides=[1, stride, stride, 1], padding="VALID")
 
 
-# Actor-Critic FF Network
-class GameACFFNetwork(GameACNetwork):
-    def __init__(self,
-                 action_size,
-                 thread_index,  # -1 for global
-                 device="/cpu:0"):
-        GameACNetwork.__init__(self, action_size, thread_index, device)
-
-        scope_name = "net_" + str(self._thread_index)
-        with tf.device(self._device), tf.variable_scope(scope_name) as scope:
-            self.W_conv1, self.b_conv1 = self._conv_variable([8, 8, 4, 16])  # stride=4
-            self.W_conv2, self.b_conv2 = self._conv_variable([4, 4, 16, 32])  # stride=2
-
-            self.W_fc1, self.b_fc1 = self._fc_variable([2592, 256])
-
-            # weight for policy output layer
-            self.W_fc2, self.b_fc2 = self._fc_variable([256, action_size])
-
-            # weight for value output layer
-            self.W_fc3, self.b_fc3 = self._fc_variable([256, 1])
-
-            # state (input)
-            self.s = tf.placeholder("float", [None, 84, 84, 4])
-
-            h_conv1 = tf.nn.relu(self._conv2d(self.s, self.W_conv1, 4) + self.b_conv1)
-            h_conv2 = tf.nn.relu(self._conv2d(h_conv1, self.W_conv2, 2) + self.b_conv2)
-
-            h_conv2_flat = tf.reshape(h_conv2, [-1, 2592])
-            h_fc1 = tf.nn.relu(tf.matmul(h_conv2_flat, self.W_fc1) + self.b_fc1)
-
-            # policy (output)
-            self.pi = tf.nn.softmax(tf.matmul(h_fc1, self.W_fc2) + self.b_fc2)
-            # value (output)
-            v_ = tf.matmul(h_fc1, self.W_fc3) + self.b_fc3
-            self.v = tf.reshape(v_, [-1])
-
-    def run_policy_and_value(self, sess, s_t):
-        pi_out, v_out = sess.run([self.pi, self.v], feed_dict={self.s: [s_t]})
-        return (pi_out[0], v_out[0])
-
-    def run_policy(self, sess, s_t):
-        pi_out = sess.run(self.pi, feed_dict={self.s: [s_t]})
-        return pi_out[0]
-
-    def run_value(self, sess, s_t):
-        v_out = sess.run(self.v, feed_dict={self.s: [s_t]})
-        return v_out[0]
-
-    def get_vars(self):
-        return [self.W_conv1, self.b_conv1,
-                self.W_conv2, self.b_conv2,
-                self.W_fc1, self.b_fc1,
-                self.W_fc2, self.b_fc2,
-                self.W_fc3, self.b_fc3]
-
-
-# Actor-Critic LSTM Network
 class GameACLSTMNetwork(GameACNetwork):
+
     def __init__(self,
                  action_size,
-                 thread_index,  # -1 for global
+                 thread_index,
                  device="/cpu:0"):
         GameACNetwork.__init__(self, action_size, thread_index, device)
-
+        super(GameACLSTMNetwork, self).__init__(action_size=action_size,
+                                                thread_index=thread_index,
+                                                device=device)
+        # 定义默认的网络名称，防止参数重名
         scope_name = "net_" + str(self._thread_index)
         with tf.device(self._device), tf.variable_scope(scope_name) as scope:
+            # Actor 网络部分
+            # CNN 的参数，对图像进行处理，[kernel, kernel,in_channel, out_channel]
             self.W_conv1, self.b_conv1 = self._conv_variable([8, 8, 4, 16])  # stride=4
             self.W_conv2, self.b_conv2 = self._conv_variable([4, 4, 16, 32])  # stride=2
-
+            # 最后一层全链接的权重的偏移
             self.W_fc1, self.b_fc1 = self._fc_variable([2592, 256])
 
-            # lstm
+            # LSTM 的形式是一个元组（cell状态, h）。有 256 个隐藏层
             self.lstm = tf.contrib.rnn.BasicLSTMCell(256, state_is_tuple=True)
 
-            # weight for policy output layer
+            # 策略网络的参数。（需要获取 LSTM 的输入）
             self.W_fc2, self.b_fc2 = self._fc_variable([256, action_size])
 
-            # weight for value output layer
+            # 值函数输出层的参数
             self.W_fc3, self.b_fc3 = self._fc_variable([256, 1])
 
-            # state (input)
+            # 从 环境中获取得到的游戏的当前状态，保存了 4 个帧
             self.s = tf.placeholder("float", [None, 84, 84, 4])
 
             h_conv1 = tf.nn.relu(self._conv2d(self.s, self.W_conv1, 4) + self.b_conv1)
@@ -198,16 +153,16 @@ class GameACLSTMNetwork(GameACNetwork):
 
             h_conv2_flat = tf.reshape(h_conv2, [-1, 2592])
             h_fc1 = tf.nn.relu(tf.matmul(h_conv2_flat, self.W_fc1) + self.b_fc1)
-            # h_fc1 shape=(5,256)
+
 
             h_fc1_reshaped = tf.reshape(h_fc1, [1, -1, 256])
-            # h_fc_reshaped = (1,5,256)
 
-            # place holder for LSTM unrolling time step size.
+            # 展开 LSTM 单元的 placeholder，按照时间步的大小（step_size）展开
             self.step_size = tf.placeholder(tf.float32, [1])
 
             self.initial_lstm_state0 = tf.placeholder(tf.float32, [1, 256])
             self.initial_lstm_state1 = tf.placeholder(tf.float32, [1, 256])
+            # LSTM 元组的形式（cell状态，s）
             self.initial_lstm_state = tf.contrib.rnn.LSTMStateTuple(self.initial_lstm_state0,
                                                                     self.initial_lstm_state1)
 
@@ -216,6 +171,11 @@ class GameACLSTMNetwork(GameACNetwork):
             # Unrolling step size is applied via self.step_size placeholder.
             # When forward propagating, step_size is 1.
             # (time_major = False, so output shape is [batch_size, max_time, cell.output_size])
+            # 展开 LSTM, 在 local AC网络中定义了最大的时间状态数量， 也就是公式中的 T
+            # 当一局对抗结束后，展开的所有的时间步到会小于 LOCAL_TIME_STEP
+            # dynamic_rnn 可以做到一次调用，输出 step_size 个数的记忆的信息
+            # 构建时候的参数 time_major = False， 输出的维度为 [batch_size, max_time, cell.output_size]
+            # dynamic_rnn 扮演了类似与 call 函数的功能
             lstm_outputs, self.lstm_state = tf.nn.dynamic_rnn(self.lstm,
                                                               h_fc1_reshaped,
                                                               initial_state=self.initial_lstm_state,
@@ -223,17 +183,16 @@ class GameACLSTMNetwork(GameACNetwork):
                                                               time_major=False,
                                                               scope=scope)
 
-            # lstm_outputs: (1,5,256) for back prop, (1,1,256) for forward prop.
-
+            # LSTM 的输出 唯独 (1,5,256) 用于反向传播，（1,1,256） 用于前向传播
             lstm_outputs = tf.reshape(lstm_outputs, [-1, 256])
-
-            # policy (output)
+            # 策略更新部分，定义了测率输出
             self.pi = tf.nn.softmax(tf.matmul(lstm_outputs, self.W_fc2) + self.b_fc2)
 
-            # value (output)
+            # 之函数输出
             v_ = tf.matmul(lstm_outputs, self.W_fc3) + self.b_fc3
             self.v = tf.reshape(v_, [-1])
 
+            # LSTM 内置的参数
             scope.reuse_variables()
             self.W_lstm = tf.get_variable("basic_lstm_cell/kernel")
             self.b_lstm = tf.get_variable("basic_lstm_cell/bias")
@@ -241,22 +200,35 @@ class GameACLSTMNetwork(GameACNetwork):
             self.reset_state()
 
     def reset_state(self):
+        """
+        清空 LSTM
+        :return:
+        """
         self.lstm_state_out = tf.contrib.rnn.LSTMStateTuple(np.zeros([1, 256]),
                                                             np.zeros([1, 256]))
 
     def run_policy_and_value(self, sess, s_t):
-        # This run_policy_and_value() is used when forward propagating.
-        # so the step size is 1.
+        """
+        验证的时候，进行前向传播。LSTM 输出的最大的时间步是 1
+        :param sess: 会话
+        :param s_t: t 时刻的状态
+        :return: \pi(a|s_t), 当前状态的价值
+        """
         pi_out, v_out, self.lstm_state_out = sess.run([self.pi, self.v, self.lstm_state],
                                                       feed_dict={self.s: [s_t],
                                                                  self.initial_lstm_state0: self.lstm_state_out[0],
                                                                  self.initial_lstm_state1: self.lstm_state_out[1],
                                                                  self.step_size: [1]})
-        # pi_out: (1,3), v_out: (1)
+        # 维度， pi_out: (1,3), v_out: (1)
         return (pi_out[0], v_out[0])
 
     def run_policy(self, sess, s_t):
-        # This run_policy() is used for displaying the result with display tool.
+        """
+        用于验证，对于当前环境给出的状态，输出一个策略知道 agent 的行动。仅进行前向传播
+        :param sess: 会话
+        :param s_t: t 时刻的状态
+        :return: 测率
+        """
         pi_out, self.lstm_state_out = sess.run([self.pi, self.lstm_state],
                                                feed_dict={self.s: [s_t],
                                                           self.initial_lstm_state0: self.lstm_state_out[0],
@@ -266,10 +238,15 @@ class GameACLSTMNetwork(GameACNetwork):
         return pi_out[0]
 
     def run_value(self, sess, s_t):
-        # This run_value() is used for calculating V for bootstrapping at the
-        # end of LOCAL_T_MAX time step sequence.
-        # When next sequcen starts, V will be calculated again with the same state using updated network weights,
-        # so we don't update LSTM state here.
+        """
+        获取价值。在 local AC 网络的最大的时间步的时候，用于自举（bootstrapping），当下一个时间序列开始的时候，
+        值函数会被再次以相同的状态计算，所以不需要更新 LSTM 在当前状态的输出。当下一个时间序列。见论文 Algorithm 3
+        Async advantaged actor-critic
+        :param sess: 会话
+        :param s_t: t 时刻的状态
+        :return:
+        """
+
         prev_lstm_state_out = self.lstm_state_out
         v_out, _ = sess.run([self.v, self.lstm_state],
                             feed_dict={self.s: [s_t],
@@ -282,6 +259,10 @@ class GameACLSTMNetwork(GameACNetwork):
         return v_out[0]
 
     def get_vars(self):
+        """
+        获取当前 AC 网络的参数，用于同步网络的参数
+        :return:
+        """
         return [self.W_conv1, self.b_conv1,
                 self.W_conv2, self.b_conv2,
                 self.W_fc1, self.b_fc1,

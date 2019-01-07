@@ -1,0 +1,57 @@
+source: https://www.reddit.com/r/MachineLearning/comments/3yazla/is_it_common_to_use_lstm_for_reinforcement/
+level 1
+MrTwiggy
+3 points
+·
+3 years ago
+·
+edited 3 years ago
+Depends on what you're hoping to use it for and the domain. For example, LSTMs and recurrent neural networks in general can be useful in a reinforcement learning domain. However, there is typically an assumption that your state is Markovian. So if you are dealing with a Markov state space, then a recurrent neural network might not be a great fit because there isn't any time series dependencies on the state or results.
+
+But the Markov assumption is generally soft and most RL applications aren't technically Markovian, which opens up the potential benefit of RNNs that can model long term time dependencies across a series of states.
+
+Side note: Just in case you aren't familiar with what a Markov state space is. It's essentially when a single state can be used to model all future environment interactions. So for example, a game of Chess has the Markov property. The state of a game of Chess is the orientation of all the pieces, and it doesn't really matter what the state was 3 turns ago, because the current state is all you need to know. But, on the other hand, a game of Poker does not necessarily have the Markov property for it's states, because there are unknowns in what cards are available. So know what cards were played 3 turns ago could be useful in determining what might happen in the future. So a RNN might do better here since it can 'remember' previous states and use those to make future assumptions.
+
+Share
+Report
+Save
+
+
+level 2
+pranv
+2 points
+·
+3 years ago
+I have a question regarding your Chess example: Wouldn't a sequence of moves by you and your opponent be a result of a strategy both of you are using? The only way to understand what your opponent is trying is by studying the pattern of his moves, right? (I think humans (over) do this)
+
+Share
+Report
+Save
+
+
+level 3
+MrTwiggy
+2 points
+·
+3 years ago
+Absolutely, which is why the Markov property assumption is usually soft. In most cases, you can construe some missing information required to properly model the system. Going even further, say you decided to make the state representation be ALL the moves made in a single game.
+
+I might argue that this still does not have the Markov property, because the individual player may have a personal preference/style they enjoy more and that could be observed by including all of his past games he has ever played. Or maybe he ate cereal this morning and it will influence his gameplay in some way, which means we need to observe whether he ate cereal that morning.
+
+Hope that kind of illustrates the point well enough. Perhaps a better example of a true state representation that has the Markov property would be a game of Atari where the environment is deterministic to the underlying state in available in memory (not necessarily in photos/images of the screen.) But in general, a soft Markov property is acceptable.
+
+Share
+Report
+Save
+
+
+level 4
+pranv
+1 point
+·
+3 years ago
+Yes, that helps. Thanks :)
+
+Share
+Report
+Sav

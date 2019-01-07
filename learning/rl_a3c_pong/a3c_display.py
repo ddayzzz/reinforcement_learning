@@ -4,7 +4,7 @@ import numpy as np
 import random
 
 from game_state import GameState
-from game_ac_network import GameACFFNetwork, GameACLSTMNetwork
+from game_ac_network import GameACLSTMNetwork
 from a3c_training_thread import A3CTrainingThread
 from rmsprop_applier import RMSPropApplier
 
@@ -23,10 +23,7 @@ def choose_action(pi_values):
 # use CPU for display tool
 device = "/cpu:0"
 
-if USE_LSTM:
-  global_network = GameACLSTMNetwork(ACTION_SIZE, -1, device)
-else:
-  global_network = GameACFFNetwork(ACTION_SIZE, -1, device)
+global_network = GameACLSTMNetwork(ACTION_SIZE, -1, device)
 
 learning_rate_input = tf.placeholder("float")
 
