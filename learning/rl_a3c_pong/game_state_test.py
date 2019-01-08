@@ -8,7 +8,7 @@ from game_state import GameState
 class TestSequenceFunctions(unittest.TestCase):
 
     def test_process(self):
-        game_state = GameState(display=True)
+        game_state = GameState(display=True, seed=0)
 
         before_s_t = np.array(game_state.s_t)
 

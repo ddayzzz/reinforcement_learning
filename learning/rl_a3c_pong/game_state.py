@@ -8,14 +8,21 @@ from constants import ACTION_SIZE
 
 class GameState(object):
 
-    def __init__(self, display=False):
+    def __init__(self, seed, init_actions_max=7, display=False):
+        """
         # 封装游戏环境
         # 游戏有6个动作空间，但是只有三个是主要的游戏实际的动作
         # https://ai.stackexchange.com/questions/2449/what-are-different-actions-in-action-space-of-environment-of-pong-v0-game-from
+        :param seed: 种子
+        :param init_actions_max: reset agent 重复的动作. 0 表示不执行重复的初始动作
+        :param display: 是否绘图, 一般测试的时候开启
+        """
         # OpenAI gym
         self._env = gym.make('Pong-v0')
+        self._env.seed(seed=seed)
         # 是否显示游戏的图像
         self._display = display
+        self._init_actions_max = init_actions_max
         # 定义 Pong 游戏的映射，把6个动作映射为一个{2，3，4}的3个动作
         # API 定义：Each action is repeatedly performed for a duration of kk frames, where kk is uniformly sampled from {2,3,4}.
         self.real_actions_space = np.array([2, 3, 4])
@@ -52,9 +59,14 @@ class GameState(object):
         重置当前的环境
         :return:
         """
-        x_t = self._env.reset()
+        reset_x = self._env.reset()
+        # agent 重复动作
+        if self._init_actions_max > 0:
+            no_op = np.random.randint(0, self._init_actions_max + 1)
+            for _ in range(no_op):
+                reset_x, _, _, _ = self._env.step(self.real_actions_space[0])  # 执行初始动作
         # 处理初始状态的图像帧
-        x_t = self._process_frame(x_t, reshape=False)
+        x_t = self._process_frame(reset_x, reshape=False)
 
         self.reward = 0
         self.terminal = False
