@@ -141,7 +141,7 @@ class A3CTrainingThread(object):
 
         start_lstm_state = self.local_network.lstm_state_out
 
-        # 必须规定 local AC 网络最大的时间步
+        # 必须规定 local AC 网络最大的时间步，T_{max}
         for i in range(LOCAL_T_MAX):
             # 已经的到了游戏的当前状态以及更新后的
             pi_, value_ = self.local_network.run_policy_and_value(sess, self.game_state.s_t)
@@ -150,7 +150,7 @@ class A3CTrainingThread(object):
             states.append(self.game_state.s_t)
             actions.append(action)
             values.append(value_)
-            # 只有 global AC 网络需要在合适的时候输出日志
+            # 只有 第一个 local AC 网络需要在合适的时候输出日志
             if (self.thread_index == 0) and (self.local_t % LOG_INTERVAL == 0):
                 print("pi={}".format(pi_))
                 print(" V={}".format(value_))
@@ -227,7 +227,7 @@ class A3CTrainingThread(object):
                      self.local_network.initial_lstm_state: start_lstm_state,
                      self.local_network.step_size: [len(batch_a)],
                      self.learning_rate_input: cur_learning_rate})
-
+        # 计算 wall clock time， 在论文第6页
         if (self.thread_index == 0) and (self.local_t - self.prev_local_t >= PERFORMANCE_LOG_INTERVAL):
             self.prev_local_t += PERFORMANCE_LOG_INTERVAL
             elapsed_time = time.time() - self.start_time
@@ -235,7 +235,7 @@ class A3CTrainingThread(object):
             print("### Performance : {} STEPS in {:.0f} sec. {:.0f} STEPS/sec. {:.2f}M STEPS/hour".format(
                 global_t, elapsed_time, steps_per_sec, steps_per_sec * 3600 / 1000000.))
 
-        # return advanced local step size
+        # 进行 LOCAL_TIME_MAX 次采样的时间差
         diff_local_t = self.local_t - start_local_t
         return diff_local_t
 

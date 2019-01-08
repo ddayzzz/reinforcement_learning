@@ -166,11 +166,7 @@ class GameACLSTMNetwork(GameACNetwork):
             self.initial_lstm_state = tf.contrib.rnn.LSTMStateTuple(self.initial_lstm_state0,
                                                                     self.initial_lstm_state1)
 
-            # Unrolling LSTM up to LOCAL_T_MAX time steps. (= 5time steps.)
-            # When episode terminates unrolling time steps becomes less than LOCAL_TIME_STEP.
-            # Unrolling step size is applied via self.step_size placeholder.
-            # When forward propagating, step_size is 1.
-            # (time_major = False, so output shape is [batch_size, max_time, cell.output_size])
+
             # 展开 LSTM, 在 local AC网络中定义了最大的时间状态数量， 也就是公式中的 T
             # 当一局对抗结束后，展开的所有的时间步到会小于 LOCAL_TIME_STEP
             # dynamic_rnn 可以做到一次调用，输出 step_size 个数的记忆的信息
@@ -254,7 +250,7 @@ class GameACLSTMNetwork(GameACNetwork):
                                        self.initial_lstm_state1: self.lstm_state_out[1],
                                        self.step_size: [1]})
 
-        # roll back lstm state
+        # 回滚到先前的输出的状态
         self.lstm_state_out = prev_lstm_state_out
         return v_out[0]
 
