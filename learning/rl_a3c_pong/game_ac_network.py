@@ -212,10 +212,12 @@ class GameACLSTMNetwork(GameACNetwork):
         :return: \pi(a|s_t), 当前状态的价值
         """
         pi_out, v_out, self.lstm_state_out = sess.run([self.pi, self.v, self.lstm_state],
-                                                      feed_dict={self.s: [s_t],
-                                                                 self.initial_lstm_state0: self.lstm_state_out[0],
-                                                                 self.initial_lstm_state1: self.lstm_state_out[1],
-                                                                 self.step_size: [1]})
+                                                                  feed_dict={self.s: [s_t],
+                                                                             self.initial_lstm_state0:
+                                                                                 self.lstm_state_out[0],
+                                                                             self.initial_lstm_state1:
+                                                                                 self.lstm_state_out[1],
+                                                                             self.step_size: [1]})
         # 维度， pi_out: (1,3), v_out: (1)
         return (pi_out[0], v_out[0])
 

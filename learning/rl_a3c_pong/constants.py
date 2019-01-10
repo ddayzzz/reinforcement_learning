@@ -4,7 +4,7 @@ LOCAL_T_MAX = 20  # 定义 local AC 网络进行采样的最大的时间步
 RMSP_ALPHA = 0.99  # RMSProp 的损失 公式（S2）
 RMSP_EPSILON = 0.1  # RMSProp epsilon 公式 （S3）
 CHECKPOINT_DIR = 'checkpoints'
-LOG_FILE = 'tmp/a3c_log'
+LOG_FILE = 'logs'
 # 学习率的选择，[LOW, HIGH]
 INITIAL_ALPHA_LOW = 1e-4
 INITIAL_ALPHA_HIGH = 1e-2

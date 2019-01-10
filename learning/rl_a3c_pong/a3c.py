@@ -85,12 +85,15 @@ init = tf.global_variables_initializer()
 sess.run(init)
 
 # 定义 tensorboard 的可视化输出
+## 第一个 local AC 的分数
 score_input = tf.placeholder(tf.int32)
+learning_rate_input = tf.placeholder(tf.float32)
 tf.summary.scalar("score", score_input)
-
+tf.summary.scalar("learning_rate", learning_rate_input)
 summary_op = tf.summary.merge_all()
 summary_writer = tf.summary.FileWriter(LOG_FILE, sess.graph)
-
+# 定义调度器
+coord = tf.train.Coordinator()
 # 主要是用于保存模型以及恢复的过程
 saver = tf.train.Saver()
 checkpoint = tf.train.get_checkpoint_state(CHECKPOINT_DIR)
@@ -111,7 +114,7 @@ else:
     wall_t = 0.0
 
 
-def train_function(parallel_index):
+def train_function(parallel_index, coord):
     """
 
     :param parallel_index:
@@ -124,17 +127,21 @@ def train_function(parallel_index):
     start_time = time.time() - wall_t
     training_thread.set_start_time(start_time)
 
-    while True:
+    while not coord.should_stop():
         if stop_requested:
             # 是否发出了终止信号？
             break
         if global_t > MAX_TIME_STEP:
             # global AC 已经运行完成
             break
-
-        diff_global_t = training_thread.process(sess, global_t, summary_writer,
-                                                summary_op, score_input)
+        diff_global_t = training_thread.process(sess,
+                                                global_t,
+                                                summary_writer,
+                                                summary_op,
+                                                learning_rate_input,
+                                                score_input)
         global_t += diff_global_t
+
 
 
 def signal_handler(signal, frame):
@@ -145,22 +152,25 @@ def signal_handler(signal, frame):
     :return:
     """
     global stop_requested
-    print('已经按下 Ctrl+C，正在退出')
+    print('接收到了终止信号: SIGTERM 或 SIGINT')
     # 通知线程，结束 local AC
     stop_requested = True
 
 
 train_threads = []
 for i in range(PARALLEL_SIZE):
-    train_threads.append(threading.Thread(target=train_function, args=(i,)))
+    train_threads.append(threading.Thread(target=train_function, args=(i, coord)))
 # 绑定 KeyboardInterrupt 的信号，OS 会给主进程发送 SIGINT 信号
 signal.signal(signal.SIGINT, signal_handler)
+# 主进程可能会被终止, 接收 SIGTERM 信号
+signal.signal(signal.SIGTERM, signal_handler)
 
-# 起始时间，
+# 起始时间
 start_time = time.time() - wall_t
 
 for t in train_threads:
     t.start()
+coord.join(train_threads)
 
 print('按下 Ctrl+C 退出')
 signal.pause()

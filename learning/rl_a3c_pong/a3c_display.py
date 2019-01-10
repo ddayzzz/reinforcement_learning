@@ -15,7 +15,6 @@ from constants import CHECKPOINT_DIR
 from constants import RMSP_EPSILON
 from constants import RMSP_ALPHA
 from constants import GRAD_NORM_CLIP
-from constants import OUTPUT_FIRST_EPISODE
 
 
 def choose_action(pi_values):

@@ -6,13 +6,14 @@ import time
 
 
 from game_state import GameState
-from game_state import ACTION_SIZE
+
 from game_ac_network import GameACLSTMNetwork
 
 # 需要的常熟
 from constants import GAMMA
 from constants import LOCAL_T_MAX
 from constants import ENTROPY_BETA
+from constants import ACTION_SIZE
 
 # 输出日志的间隔
 LOG_INTERVAL = 100
@@ -44,7 +45,6 @@ class A3CTrainingThread(object):
         self.max_global_time_step = max_global_time_step
         # 初始化网络的参数
         self.local_network = GameACLSTMNetwork(ACTION_SIZE, thread_index, device)
-
         self.local_network.prepare_loss(ENTROPY_BETA)
         # 需要手机 loss 函数关于各个训练参数？的梯度信息
         with tf.device(device):
@@ -92,23 +92,6 @@ class A3CTrainingThread(object):
         """
         return np.random.choice(range(len(pi_values)), p=pi_values)
 
-    def _record_score(self, sess, summary_writer, summary_op, score_input, score, global_t):
-        """
-        tensorboard 的可视化输出
-        :param sess: 会话
-        :param summary_writer:
-        :param summary_op:
-        :param score_input:
-        :param score:
-        :param global_t:
-        :return:
-        """
-        summary_str = sess.run(summary_op, feed_dict={
-            score_input: score
-        })
-        summary_writer.add_summary(summary_str, global_t)
-        summary_writer.flush()
-
     def set_start_time(self, start_time):
         """
         设置开始时间
@@ -117,13 +100,19 @@ class A3CTrainingThread(object):
         """
         self.start_time = start_time
 
-    def process(self, sess, global_t, summary_writer, summary_op, score_input):
+    def process(self,
+                sess,
+                global_t,
+                summary_writer,
+                summary_op,
+                learning_rate_input,
+                score_input):
         """
         开始 local AC 网络的训练过程
         :param sess:
         :param global_t:
         :param summary_writer:
-        :param summary_op:
+        :param learning_rate_input:
         :param score_input:
         :return:
         """
@@ -175,9 +164,6 @@ class A3CTrainingThread(object):
                 terminal_end = True
                 print("score={}".format(self.episode_reward))
 
-                self._record_score(sess, summary_writer, summary_op, score_input,
-                                   self.episode_reward, global_t)
-
                 self.episode_reward = 0
                 self.game_state.reset()
                 # LSTM 的传递的装套重置
@@ -212,7 +198,15 @@ class A3CTrainingThread(object):
             batch_R.append(R)
 
         cur_learning_rate = self._anneal_learning_rate(global_t)
-
+        if terminal_end:
+            #
+            summary_str = sess.run(summary_op, feed_dict={
+                score_input: self.episode_reward,
+                learning_rate_input: cur_learning_rate
+            })
+            summary_writer.add_summary(summary_str, global_t)
+            summary_writer.flush()
+            #
         batch_si.reverse()
         batch_a.reverse()
         batch_td.reverse()
@@ -227,6 +221,7 @@ class A3CTrainingThread(object):
                      self.local_network.initial_lstm_state: start_lstm_state,
                      self.local_network.step_size: [len(batch_a)],
                      self.learning_rate_input: cur_learning_rate})
+
         # 计算 wall clock time， 在论文第6页
         if (self.thread_index == 0) and (self.local_t - self.prev_local_t >= PERFORMANCE_LOG_INTERVAL):
             self.prev_local_t += PERFORMANCE_LOG_INTERVAL
