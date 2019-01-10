@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+# RMSProp 的 单元测试
 import numpy as np
 import math
 import tensorflow as tf

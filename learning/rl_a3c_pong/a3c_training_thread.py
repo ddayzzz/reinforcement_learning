@@ -9,7 +9,7 @@ from game_state import GameState
 
 from game_ac_network import GameACLSTMNetwork
 
-# 需要的常熟
+# 需要的常数
 from constants import GAMMA
 from constants import LOCAL_T_MAX
 from constants import ENTROPY_BETA
@@ -61,7 +61,7 @@ class A3CTrainingThread(object):
         # 每一个 local AC 在算法结束的时候需要从 global AC 网络同步参数
         self.sync = self.local_network.sync_from(global_network)
         # 封装游戏
-        self.game_state = GameState(seed=113 * thread_index)
+        self.game_state = GameState()
         # 统计 时间步
         self.local_t = 0
         # 各色训练参参数

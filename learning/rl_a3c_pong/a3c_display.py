@@ -47,7 +47,7 @@ if checkpoint and checkpoint.model_checkpoint_path:
 else:
     print("没找到检查点")
 
-game_state = GameState(display=True, seed=0, init_actions_max=0, output_video=True)
+game_state = GameState(display=True, output_video=True, no_op_max=0)
 
 
 while True:

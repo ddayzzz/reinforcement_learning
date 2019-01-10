@@ -12,7 +12,7 @@ INITIAL_ALPHA_LOW = 1e-4
 INITIAL_ALPHA_HIGH = 1e-2
 
 PARALLEL_SIZE = multiprocessing.cpu_count()  # local AC 的数量
-ACTION_SIZE = 3  # 状态空间，这里把 gym 的 6个动作映射到 3个
+ACTION_SIZE = 6  # 行为空间, 6 动作
 
 INITIAL_ALPHA_LOG_RATE = 0.4226  # 计算初始学习学习率的参数
 GAMMA = 0.99  # discounted 的回报
