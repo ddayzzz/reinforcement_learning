@@ -26,7 +26,7 @@ from constants import RMSP_EPSILON
 from constants import RMSP_ALPHA
 from constants import GRAD_NORM_CLIP
 from constants import USE_GPU
-
+from constants import SAVE_CHECKPOINT_PER_GLOBAL_TIME
 
 
 def log_uniform(lo, hi, rate):
@@ -114,7 +114,7 @@ else:
     wall_t = 0.0
 
 
-def train_function(parallel_index, coord):
+def train_function(parallel_index, coord, saver):
     """
 
     :param parallel_index:
@@ -141,6 +141,16 @@ def train_function(parallel_index, coord):
                                                 learning_rate_input,
                                                 score_input)
         global_t += diff_global_t
+        #
+        if parallel_index == 0 and (global_t + 1) % SAVE_CHECKPOINT_PER_GLOBAL_TIME == 0:
+            # 写入 wall clock time
+            wall_t_s = time.time() - start_time
+            wall_t_fname_s = CHECKPOINT_DIR + '/' + 'wall_t.' + str(global_t)
+            with open(wall_t_fname_s, 'w') as f:
+                f.write(str(wall_t_s))
+            fn = CHECKPOINT_DIR + '/' + 'checkpoint'
+            saver.save(sess, fn, global_step=global_t)
+            print('保存检查点到: ' + CHECKPOINT_DIR + '/' + 'checkpoint')
 
 
 
@@ -159,7 +169,7 @@ def signal_handler(signal, frame):
 
 train_threads = []
 for i in range(PARALLEL_SIZE):
-    train_threads.append(threading.Thread(target=train_function, args=(i, coord)))
+    train_threads.append(threading.Thread(target=train_function, args=(i, coord, saver)))
 # 绑定 KeyboardInterrupt 的信号，OS 会给主进程发送 SIGINT 信号
 signal.signal(signal.SIGINT, signal_handler)
 # 主进程可能会被终止, 接收 SIGTERM 信号
