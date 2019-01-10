@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-import sys
+# 封装了 gym Pong 的游戏对象
 import numpy as np
 import cv2
-# gym version
 import gym
-from constants import ACTION_SIZE
+from gym.wrappers import Monitor
+
 
 class GameState(object):
 
-    def __init__(self, seed, init_actions_max=7, display=False):
+    def __init__(self, seed, init_actions_max=7, display=False, output_video=False):
         """
         # 封装游戏环境
         # 游戏有6个动作空间，但是只有三个是主要的游戏实际的动作
@@ -20,14 +20,24 @@ class GameState(object):
         # OpenAI gym
         self._env = gym.make('Pong-v0')
         self._env.seed(seed=seed)
+        #
+        if output_video:
+            self._env = Monitor(env=self._env, directory='./video', video_callable=lambda episode_id: True)  # 每一次episode保存
+
         # 是否显示游戏的图像
         self._display = display
         self._init_actions_max = init_actions_max
-        # 定义 Pong 游戏的映射，把6个动作映射为一个{2，3，4}的3个动作
+        # 保存原始游戏图像, 一帧
+        self.frame = None
+        # 定义 Pong 游戏的映射，把6个动作映射为一个{0，4, 5}的3个动作
         # API 定义：Each action is repeatedly performed for a duration of kk frames, where kk is uniformly sampled from {2,3,4}.
-        self.real_actions_space = np.array([2, 3, 4])
+        # 动作空间精简: https://ai.stackexchange.com/questions/2449/what-are-different-actions-in-action-space-of-environment-of-pong-v0-game-from
+        # .unwrapped.get_action_meanings() ['NOOP', 'FIRE', 'RIGHT', 'LEFT', 'RIGHTFIRE', 'LEFTFIRE']
+        self.real_actions_space = np.array([0, 4, 5])
         # 首先清空游戏的信息
         self.reset()
+
+
 
     @staticmethod
     def _process_frame(frame, reshape):
@@ -65,6 +75,8 @@ class GameState(object):
             no_op = np.random.randint(0, self._init_actions_max + 1)
             for _ in range(no_op):
                 reset_x, _, _, _ = self._env.step(self.real_actions_space[0])  # 执行初始动作
+        #
+        self.frame = reset_x.copy()
         # 处理初始状态的图像帧
         x_t = self._process_frame(reset_x, reshape=False)
 
@@ -83,6 +95,9 @@ class GameState(object):
         real_action = self.real_actions_space[action]
         # 注意转换成映射后的行为
         x_t1, reward, done, info = self._env.step(real_action)
+        #
+        self.frame = x_t1.copy()
+        # 处理
         x_t1 = self._process_frame(frame=x_t1, reshape=True)
 
         self.reward = reward
@@ -99,3 +114,4 @@ class GameState(object):
         :return:
         """
         self.s_t = self.s_t1
+

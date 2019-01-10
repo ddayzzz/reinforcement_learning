@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# RMSProp 优化器
+# 源代码参考了 https://github.com/tensorflow/tensorflow/blob/r1.12/tensorflow/python/training/rmsprop.py
 import tensorflow as tf
 
 from tensorflow.python.training import training_ops
@@ -24,7 +26,7 @@ class RMSPropApplier(object):
         self._clip_norm = clip_norm
         self._device = device
 
-        # Tensors for learning rate and momentum.  Created in _prepare.
+        # RMSProp 的动量参数 momentum 和 epsilon
         self._learning_rate_tensor = None
         self._decay_tensor = None
         self._momentum_tensor = None

@@ -17,19 +17,19 @@ class TestSequenceFunctions(unittest.TestCase):
             bef2 = game_state.s_t[:, :, 2]
             bef3 = game_state.s_t[:, :, 3]
 
-            game_state.process(0)
+            game_state.process(2)
             game_state.update()
 
             aft0 = game_state.s_t[:, :, 0]
             aft1 = game_state.s_t[:, :, 1]
             aft2 = game_state.s_t[:, :, 2]
 
-            # values should be shifted
+            # 状态是移动的
             self.assertTrue((bef1.flatten() == aft0.flatten()).all())
             self.assertTrue((bef2.flatten() == aft1.flatten()).all())
             self.assertTrue((bef3.flatten() == aft2.flatten()).all())
 
-            # all element should be less [0.0~1.0]
+            # 必须是规格化的 [0.0,1.0]
             self.assertTrue(np.less_equal(bef1, 1.0).all())
             self.assertTrue(np.less_equal(bef2, 1.0).all())
             self.assertTrue(np.less_equal(bef3, 1.0).all())

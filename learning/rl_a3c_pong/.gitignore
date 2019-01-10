@@ -1,5 +1,8 @@
+/*.avi
 /*.pyc
 /tmp/*
+/logs/
+/video/
 /old/*
 /checkpoints*/*
 /.idea/*

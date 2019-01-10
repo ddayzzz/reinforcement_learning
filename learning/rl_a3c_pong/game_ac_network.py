@@ -12,11 +12,12 @@ class GameACNetwork(object):
                  device="/cpu:0"):
         """
         基本 AC 网络定义，定义了:
-        1. Actor: states -> actions
-        2. Actor-target: states -> actions
-        3. Critic: states, actions -> values
-        4. Critic-target: states, actions -> values
-        LSTM 的作用主要在于实现和 DQN 中的 Experience Replay
+        1. Actor: states -> actions, 根据状态, 选择一个动作
+        2. Actor-target: states -> actions, 根据 critic 的打分, 调整自身的策略(更新参数), 下次做的更好
+        3. Critic: states, actions -> values, 根据 actor 的表现打分
+        4. Critic-target: states, actions -> values, 根据环境的 reward 调整自己给分的策略
+        LSTM 的作用主要在于实现类似于 DQN 中的 Experience Replay
+        Critic 用 TD 进行训练
         :param action_size: 状态空间的大小
         :param thread_index: 线程编号，主要区别不同的 local 和 global AC 网络
         :param device: 会话运行的设备
@@ -49,7 +50,7 @@ class GameACNetwork(object):
             # 计算的公式在论文第四页
             policy_loss = - tf.reduce_sum(tf.reduce_sum(tf.multiply(log_pi, self.a), reduction_indices=1) * self.td + entropy * entropy_beta)
 
-            # 用于累计回报， 治理使用时间差分，即  R_t - V(s;theta_v)
+            # 用于累积(多步)回报， 使用时间差分，即  R_t - V(s;theta_v)
             self.r = tf.placeholder("float", [None])
 
             # Critic 的学习率一般是 Actor 学习率的一半。 Value 的损失
@@ -172,8 +173,8 @@ class GameACLSTMNetwork(GameACNetwork):
             # dynamic_rnn 可以做到一次调用，输出 step_size 个数的记忆的信息
             # 构建时候的参数 time_major = False， 输出的维度为 [batch_size, max_time, cell.output_size]
             # dynamic_rnn 扮演了类似与 call 函数的功能
-            lstm_outputs, self.lstm_state = tf.nn.dynamic_rnn(self.lstm,
-                                                              h_fc1_reshaped,
+            lstm_outputs, self.lstm_state = tf.nn.dynamic_rnn(cell=self.lstm,
+                                                              inputs=h_fc1_reshaped,
                                                               initial_state=self.initial_lstm_state,
                                                               sequence_length=self.step_size,
                                                               time_major=False,

@@ -2,6 +2,7 @@
 # 定义 A3C 测试过程
 import tensorflow as tf
 import numpy as np
+import cv2
 
 from game_state import GameState
 from game_ac_network import GameACLSTMNetwork
@@ -14,6 +15,7 @@ from constants import CHECKPOINT_DIR
 from constants import RMSP_EPSILON
 from constants import RMSP_ALPHA
 from constants import GRAD_NORM_CLIP
+from constants import OUTPUT_FIRST_EPISODE
 
 
 def choose_action(pi_values):
@@ -46,7 +48,8 @@ if checkpoint and checkpoint.model_checkpoint_path:
 else:
     print("没找到检查点")
 
-game_state = GameState(display=True, seed=0, init_actions_max=0)
+game_state = GameState(display=True, seed=0, init_actions_max=0, output_video=True)
+
 
 while True:
 
@@ -54,6 +57,8 @@ while True:
 
     action = choose_action(pi_values)
     game_state.process(action)
+
+
 
     if game_state.terminal:
         game_state.reset()
