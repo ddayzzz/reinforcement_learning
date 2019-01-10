@@ -29,6 +29,10 @@ from constants import USE_GPU
 from constants import SAVE_CHECKPOINT_PER_GLOBAL_TIME
 
 
+if not os.path.exists(CHECKPOINT_DIR):
+    os.mkdir(CHECKPOINT_DIR)
+
+
 def log_uniform(lo, hi, rate):
     """
     计算的最佳的学习率
@@ -92,8 +96,6 @@ tf.summary.scalar("score", score_input)
 tf.summary.scalar("learning_rate", learning_rate_input)
 summary_op = tf.summary.merge_all()
 summary_writer = tf.summary.FileWriter(LOG_FILE, sess.graph)
-# 定义调度器
-coord = tf.train.Coordinator()
 # 主要是用于保存模型以及恢复的过程
 saver = tf.train.Saver()
 checkpoint = tf.train.get_checkpoint_state(CHECKPOINT_DIR)
@@ -114,7 +116,7 @@ else:
     wall_t = 0.0
 
 
-def train_function(parallel_index, coord, saver):
+def train_function(parallel_index, saver):
     """
 
     :param parallel_index:
@@ -127,7 +129,7 @@ def train_function(parallel_index, coord, saver):
     start_time = time.time() - wall_t
     training_thread.set_start_time(start_time)
 
-    while not coord.should_stop():
+    while True:
         if stop_requested:
             # 是否发出了终止信号？
             break
@@ -169,7 +171,7 @@ def signal_handler(signal, frame):
 
 train_threads = []
 for i in range(PARALLEL_SIZE):
-    train_threads.append(threading.Thread(target=train_function, args=(i, coord, saver)))
+    train_threads.append(threading.Thread(target=train_function, args=(i, saver)))
 # 绑定 KeyboardInterrupt 的信号，OS 会给主进程发送 SIGINT 信号
 signal.signal(signal.SIGINT, signal_handler)
 # 主进程可能会被终止, 接收 SIGTERM 信号
@@ -177,22 +179,18 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 # 起始时间
 start_time = time.time() - wall_t
-
+print('按下 Ctrl+C 退出')
 for t in train_threads:
     t.start()
-coord.join(train_threads)
 
-print('按下 Ctrl+C 退出')
 if os.name != 'nt':
     signal.pause()
 
-print('保存检查点...')
 # 等待所有线程退出
 for t in train_threads:
     t.join()
+print('保存检查点...')
 
-if not os.path.exists(CHECKPOINT_DIR):
-    os.mkdir(CHECKPOINT_DIR)
 
 # 写入 wall clock time
 wall_t = time.time() - start_time
