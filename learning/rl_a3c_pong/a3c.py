@@ -173,7 +173,8 @@ for t in train_threads:
 coord.join(train_threads)
 
 print('按下 Ctrl+C 退出')
-signal.pause()
+if os.name != 'nt':
+    signal.pause()
 
 print('保存检查点...')
 # 等待所有线程退出

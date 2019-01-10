@@ -164,7 +164,6 @@ class A3CTrainingThread(object):
                 terminal_end = True
                 print("score={}".format(self.episode_reward))
 
-                self.episode_reward = 0
                 self.game_state.reset()
                 # LSTM 的传递的装套重置
                 self.local_network.reset_state()
@@ -206,7 +205,8 @@ class A3CTrainingThread(object):
             })
             summary_writer.add_summary(summary_str, global_t)
             summary_writer.flush()
-            #
+            # 修改记录
+            self.episode_reward = 0
         batch_si.reverse()
         batch_a.reverse()
         batch_td.reverse()
