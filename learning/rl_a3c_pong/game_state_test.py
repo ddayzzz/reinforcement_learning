@@ -17,7 +17,7 @@ class TestSequenceFunctions(unittest.TestCase):
             bef2 = game_state.s_t[:, :, 2]
             bef3 = game_state.s_t[:, :, 3]
 
-            game_state.process(1)
+            game_state.process(5)
             game_state.update()
 
             aft0 = game_state.s_t[:, :, 0]

@@ -21,3 +21,4 @@ MAX_TIME_STEP = 10 * 10 ** 7  # global AC 的 时间步
 GRAD_NORM_CLIP = 40.0  # 梯度截取的参数
 USE_GPU = True  # 是否使用 GPU
 SAVE_CHECKPOINT_PER_GLOBAL_TIME = 10000  #
+GYM_ENV = 'Pong-v0'

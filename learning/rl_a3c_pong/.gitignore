@@ -2,7 +2,7 @@
 /*.pyc
 /tmp/*
 /logs/
-/video/
+/videos/
 /old/*
 /checkpoints*/*
 /.idea/*
