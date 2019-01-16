@@ -8,7 +8,7 @@ class GameACNetwork(object):
 
     def __init__(self,
                  action_size,
-                 thread_index,  # -1 for global
+                 thread_index,
                  device="/cpu:0"):
         """
         基本 AC 网络定义，定义了:
@@ -16,7 +16,6 @@ class GameACNetwork(object):
         2. Actor-target: states -> actions, 根据 critic 的打分, 调整自身的策略(更新参数), 下次做的更好
         3. Critic: states, actions -> values, 根据 actor 的表现打分
         4. Critic-target: states, actions -> values, 根据环境的 reward 调整自己给分的策略
-        LSTM 的作用主要在于实现类似于 DQN 中的 Experience Replay
         Critic 用 TD 进行训练
         :param action_size: 状态空间的大小
         :param thread_index: 线程编号，主要区别不同的 local 和 global AC 网络
@@ -36,7 +35,6 @@ class GameACNetwork(object):
             # 输出的动作的各个概率
             self.a = tf.placeholder("float", [None, self._action_size])
 
-            # temporary difference (R-V) (input for policy)
             # 时间差分 （Reward-Value）， 作为策略 pi 的输入
             self.td = tf.placeholder("float", [None])
 

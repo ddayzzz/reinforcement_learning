@@ -187,7 +187,7 @@ class A3CTrainingThread(object):
         for (ai, ri, si, Vi) in zip(actions, rewards, states, values):
             R = ri + GAMMA * R
             td = R - Vi
-            # a 用 one-hot 表示
+            #
             a = np.zeros([ACTION_SIZE])
             a[ai] = 1
 
