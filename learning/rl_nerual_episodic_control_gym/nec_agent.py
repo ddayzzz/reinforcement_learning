@@ -108,7 +108,7 @@ class NECAgent:
         if warmup or len(self.transition_queue) <= t + self.lookahead_horizon:
             lookahead = discount(
                 [transition.reward for transition in self.transition_queue[t:]], self.gamma)[0]
-            print('Q_lookahead cond1=TRUE')
+            # print('Q_lookahead cond1=TRUE')
             return Variable(Tensor([lookahead]))
         else:
             # 这个地方计算有问题, 只要是这个返回的, 返回的就是标量
@@ -120,10 +120,10 @@ class NECAgent:
             # 当前的状态 transition 在 t + lookahead_horizon 的状态
             state = self.transition_queue[t + self.lookahead_horizon].state
             state_embedding = self.embedding_network(move_to_gpu(Variable(Tensor(state)).unsqueeze(0)))
-            print('Q_lookahead cond1=FALSE')
+            # print('Q_lookahead cond1=FALSE')
             # 论文的公式(3)
             c = torch.cat([dnd.lookup(state_embedding) for dnd in self.dnd_list])
-            print('c=', c)
+            # print('c=', c)
             return self.gamma ** self.lookahead_horizon * c.max().unsqueeze(0) + lookahead
 
     def Q_update(self, q_initial, q_n):
@@ -145,7 +145,7 @@ class NECAgent:
 
             Q_N = move_to_gpu(self.Q_lookahead(t))
             embedding_index = dnd.get_index(state_embedding)
-            print(embedding_index)
+            # print(embedding_index)
             if embedding_index is None:
                 dnd.insert(state_embedding.detach(), Q_N.detach().unsqueeze(0))
             else:

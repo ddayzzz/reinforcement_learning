@@ -62,7 +62,7 @@ class DND:
         """
         Set self.values[index] = value
         """
-        print("update() called")
+        # print("update() called")
         values = self.values.data
         values[index] = value[0].data
         self.values = Parameter(values)
@@ -73,7 +73,7 @@ class DND:
         """
         Insert key, value pair into DND
         """
-        print("insert(value={0}) called".format(value))
+        # print("insert(value={0}) called".format(value))
         if self.keys_to_be_inserted is None:
             # Initial insert
             self.keys_to_be_inserted = key.data
@@ -90,15 +90,15 @@ class DND:
         self.stale_index = True
 
     def commit_insert(self):
-        print('commit_insert() called')
+        # print('commit_insert() called')
         if self.keys is None:
             self.keys = Parameter(self.keys_to_be_inserted)
             self.values = Parameter(self.values_to_be_inserted)
         elif self.keys_to_be_inserted is not None:
-            print('keys_to_be_inserted:', self.keys_to_be_inserted.size())
-            print('keys:', self.keys.size())
-            print('values_to_be_inserted:', self.values_to_be_inserted.size())
-            print('values:', self.values.size())
+            # print('keys_to_be_inserted:', self.keys_to_be_inserted.size())
+            # print('keys:', self.keys.size())
+            # print('values_to_be_inserted:', self.values_to_be_inserted.size())
+            # print('values:', self.values.size())
             self.keys = Parameter(
                 torch.cat([self.keys.data, self.keys_to_be_inserted], 0))
             self.values = Parameter(
@@ -106,7 +106,7 @@ class DND:
 
         # Move most recently used key-value pairs to the back
         if len(self.move_to_back) != 0:
-            print(self.keys.size())
+            # print(self.keys.size())
             a = self.keys.data[list(set(range(len(
                 self.keys))) - self.move_to_back)]
             b = self.keys.data[list(self.move_to_back)]
@@ -131,7 +131,7 @@ class DND:
         Perform DND lookup
         If update_flag == True, add the nearest neighbor indexes to self.indexes_to_be_updated
         """
-        print("lookup() called")
+        # print("lookup() called")
         lookup_indexes = self.kdtree.nn_index(
             lookup_key.data.cpu().numpy(), min(self.num_neighbors, len(self.keys)))[0][0]
         output = 0
@@ -156,7 +156,7 @@ class DND:
         Update self.keys and self.values via backprop
         Use self.indexes_to_be_updated to update self.key_cache accordingly and rebuild the index of self.kdtree
         """
-        print("update_params() called")
+        # print("update_params() called")
         for index in self.indexes_to_be_updated:
             del self.key_cache[tuple(self.keys[index].data.cpu().numpy())]
         self.optimizer.step()
