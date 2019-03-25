@@ -8,6 +8,13 @@ from pyflann import FLANN  # 最邻近的库
 class DND:
 
     def __init__(self, kernel, num_neighbors, max_memory, lr):
+        """
+        定义 DND 的结构
+        :param kernel:
+        :param num_neighbors:
+        :param max_memory:
+        :param lr:
+        """
         self.kernel = kernel
         self.num_neighbors = num_neighbors
         self.max_memory = max_memory
@@ -18,6 +25,7 @@ class DND:
 
         # key_cache stores a cache of all keys that exist in the DND
         # This makes DND updates efficient
+        # 这个应该是存储所有存在于 DND 中的  keys 的集合
         self.key_cache = {}
         # stale_index is a flag that indicates whether or not the index in self.kdtree is stale
         # This allows us to only rebuild the kdtree index when necessary
@@ -29,11 +37,13 @@ class DND:
         self.indexes_to_be_updated = set()
 
         # Keys and value to be inserted into self.keys and self.values when commit_insert is called
+        # 当 commit_insert 调用的时候, 用于整体更新 keys 和 相关的 values
         self.keys_to_be_inserted = None
         self.values_to_be_inserted = None
 
         # Move recently used lookup indexes
         # These should be moved to the back of self.keys and self.values to get LRU property
+        # LRU 置换算法的要被移到尾后的 keys 和 values
         self.move_to_back = set()
 
     def get_index(self, key):
@@ -52,15 +62,18 @@ class DND:
         """
         Set self.values[index] = value
         """
+        print("update() called")
         values = self.values.data
         values[index] = value[0].data
         self.values = Parameter(values)
         self.optimizer = optim.RMSprop([self.keys, self.values], lr=self.lr)
 
     def insert(self, key, value):
+
         """
         Insert key, value pair into DND
         """
+        print("insert(value={0}) called".format(value))
         if self.keys_to_be_inserted is None:
             # Initial insert
             self.keys_to_be_inserted = key.data
@@ -77,10 +90,15 @@ class DND:
         self.stale_index = True
 
     def commit_insert(self):
+        print('commit_insert() called')
         if self.keys is None:
             self.keys = Parameter(self.keys_to_be_inserted)
             self.values = Parameter(self.values_to_be_inserted)
         elif self.keys_to_be_inserted is not None:
+            print('keys_to_be_inserted:', self.keys_to_be_inserted.size())
+            print('keys:', self.keys.size())
+            print('values_to_be_inserted:', self.values_to_be_inserted.size())
+            print('values:', self.values.size())
             self.keys = Parameter(
                 torch.cat([self.keys.data, self.keys_to_be_inserted], 0))
             self.values = Parameter(
@@ -93,8 +111,7 @@ class DND:
                 self.keys))) - self.move_to_back)]
             b = self.keys.data[list(self.move_to_back)]
             self.keys = Parameter(torch.cat([a, b], 0))
-            self.values = Parameter(torch.cat([self.values.data[list(set(range(len(
-                self.values))) - self.move_to_back)], self.values.data[list(self.move_to_back)]], 0))
+            self.values = Parameter(torch.cat([self.values.data[list(set(range(len(self.values))) - self.move_to_back)], self.values.data[list(self.move_to_back)]], 0))
             self.move_to_back = set()
 
         if len(self.keys) > self.max_memory:
@@ -114,6 +131,7 @@ class DND:
         Perform DND lookup
         If update_flag == True, add the nearest neighbor indexes to self.indexes_to_be_updated
         """
+        print("lookup() called")
         lookup_indexes = self.kdtree.nn_index(
             lookup_key.data.cpu().numpy(), min(self.num_neighbors, len(self.keys)))[0][0]
         output = 0
@@ -138,6 +156,7 @@ class DND:
         Update self.keys and self.values via backprop
         Use self.indexes_to_be_updated to update self.key_cache accordingly and rebuild the index of self.kdtree
         """
+        print("update_params() called")
         for index in self.indexes_to_be_updated:
             del self.key_cache[tuple(self.keys[index].data.cpu().numpy())]
         self.optimizer.step()
