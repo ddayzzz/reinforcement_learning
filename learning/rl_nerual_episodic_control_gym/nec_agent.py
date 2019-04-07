@@ -41,7 +41,7 @@ class NECAgent:
           Replay memory to sample from for embedding network updates
         initial_epsilon: float
           Initial epsilon for epsilon greedy search
-        epsilon_decay: float
+        epsilon_decay: floatembedding_network
           Exponential decay factor for epsilon
         batch_size: int
           Batch size to sample from the replay memory
